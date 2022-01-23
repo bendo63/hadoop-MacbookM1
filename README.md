@@ -6,3 +6,5 @@ Grace au logiiciel UTM https://github.com/utmapp
 Vous pouvez émuler un processeur x86_64.
 
 Et donc pouvoir virtualiser une machine Ubuntu sans passer par un iso ARM.
+
+Dans le fichier de configuration, je détaille toutes les étapes à fin de construire votre propre cluster.
