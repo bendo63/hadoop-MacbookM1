@@ -1,0 +1,158 @@
+
+# 	Installer un server hadoop sur Ubuntu avec un macbook pro M1
+#  --- les prérequis ---
+
+#Télécharger le logiciel de vitualisation UTM pour émuler une architecture x86_64
+
+https://mac.getutm.app
+
+#Télécharger l'iso ubuntu-desktop puis crée votre machine virtuel avec UTM avec le nom "Server"
+
+https://ubuntu.com/download/desktop
+
+# --- c'est partie ! ---
+
+#1 ouvrer le terminal
+
+sudo apt update
+sudo apt upgrade
+
+#2 Install Openssh 
+
+sudo apt-get install openssh-server
+
+#3 Changement de votre hostname 
+
+sudo hostnamectl set-hostname server
+
+	#3.1 verification que votre hostname a bien changer 
+
+		hostname
+
+
+#4 Genérer la sshkey
+
+ssh-keygen -t rsa -P "" 
+
+	#4.1 Puis appuiyer sur "entrer"
+
+cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+chmod 0600 ~/.ssh/authorized_keys
+
+
+#5 installation de java
+
+sudo apt install openjdk-8-jdk
+
+#Installer Curl
+
+sudo apt install curl
+
+	#6.1 Télécharger hadoop 3.3.1
+
+		curl -O https://dlcdn.apache.org/hadoop/common/hadoop-3.3.1/hadoop-3.3.1.tar.gz
+		tar -xzf hadoop-3.3.1.tar.gz
+		sudo mv hadoop-3.3.1 /usr/local/hadoop
+		mkdir -p /home/dba/hadoop_tmp/{data,name} #Changer "dba" par le nom avant @ dans votre terminal.
+		rm hadoop-3.2.1.tar.gz
+
+#7 Set up hadoop environment variables.
+
+echo export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64 >> ~/.bashrc
+echo export PATH=\$JAVA_HOME/bin:\$PATH >> ~/.bashrc
+echo export HADOOP_HOME=/usr/local/hadoop >> ~/.bashrc
+echo export PATH=\$HADOOP_HOME/bin:\$HADOOP_HOME/sbin:\$PATH >> ~/.bashrc
+echo export HADOOP_CONF_DIR=\$HADOOP_HOME"/etc/hadoop" >> ~/.bashrc
+
+	#7.1Activer les modifications 
+
+		source ~/.bashrc
+
+#8 Copy configuration files for master node.
+
+cp master_Noeud/* /usr/local/hadoop/etc/hadoop/
+
+		# si vous n'avais pas le fichier master_Noeud sur votre machine Ubuntu
+			#copier en ssh de votre machine a votre VM
+
+				scp -r -p chemin/vers/dossier/source dba@"ip":chemin/vers/dossier/destination
+
+#9 Format HDFS
+
+hdfs namenode -format
+
+#10 Start hadoop services
+cd /usr/local/hadoop/sbin
+./start-dfs.sh
+./start-yarn.sh 
+
+
+#11 Vérifier si votre configuration marche
+
+http://ipAdress:9870
+http://ipAdress:8088
+
+
+#           --- Configuration réseaux ---
+
+sudo apt-get install nano
+
+# Nous allons prendre les l’adresse IP Server = 192.168.1.24, Salve1 = 192.168.1.25 et slave2= 192.168.1.26
+#On remplace le nom par “Server” dans la VM server
+
+sudo nano /etc/hostname
+
+# On doit commenter toutes les lignes présentes en les précédant du caractère “#” et ajouter la ligne suivante (en remplaçant l’adresse IP avec l’adresse trouvée précédemment):
+
+sudo nano /etc/hosts
+
+#127.0.0.1      localhost 
+192.168.1.24    Server
+192.168.1.25    Slave1
+192.168.1.26    Slave2
+
+# redémarrage 
+
+sudo reboot
+
+#           --- Configuration des .xml ---
+
+sudo nano /usr/local/hadoop/etc/hadoop/core-site.xml
+localhost ---> 192.168.1.24
+
+sudo nano /usr/local/hadoop/etc/hadoop/hdfs-site.xml
+replication 1 --> 2
+
+sudo nano /usr/local/hadoop/etc/hadoop/yarn-site.xml 
+
+sous la ligne "resourcemanager"
+localhost ---> 192.168.1.24
+
+sudo nano /usr/local/hadoop/etc/hadoop/workers 
+localhost --> 192.168.1.25 192.168.1.26
+
+# 					--- clonage ---
+
+#1 crée 2 clone de votre machine vituel (server --> slave1 & slave2) 
+
+#2 dans la VM server "Slave1" dans la VM Slave1 et "Slave2" dans la VM Slave2
+
+sudo nano /etc/hostname
+
+#3 changer les adresse ip pour chaque VM dans les reglage > réseaux > filaire > dans les réglagés > ipv4 > manuel
+
+ip 255.255.255.0 192.168.1.1
+
+  #3.1
+
+    sudo reboot
+
+#4 format namenode dans la VM Server
+
+		hdfs namenode -format
+
+			#4.1 Puis
+
+				start-all.sh
+
+# --- Fin ---
